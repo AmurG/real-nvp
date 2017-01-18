@@ -1,7 +1,3 @@
-"""
-Implementation of Real-NVP by Laurent Dinh (https://arxiv.org/abs/1605.08803)
-Code was started from the PixelCNN++ code (https://github.com/openai/pixel-cnn)
-"""
 
 import os
 import sys
@@ -25,6 +21,7 @@ import plotting
 parser = argparse.ArgumentParser()
 # data I/O
 parser.add_argument('-i', '--data_dir', type=str, default='/tmp/pxpp/data', help='Location for the dataset')
+parser.add_argument('-n', '--test_num', type=int, default=10, help='which to use for testing')
 parser.add_argument('-o', '--save_dir', type=str, default='/tmp/pxpp/save', help='Location for parameter checkpoints and samples')
 parser.add_argument('-d', '--data_set', type=str, default='cifar', help='Can be either cifar|imagenet')
 parser.add_argument('-t', '--save_interval', type=int, default=20, help='Every how many epochs to write checkpoint/samples?')
@@ -53,8 +50,8 @@ tf.set_random_seed(args.seed)
 DataLoader = {'cifar':cifar10_data.DataLoader, 
               'imagenet':imagenet_data.DataLoader
             }[args.data_set]
-train_data = DataLoader(args.data_dir, 'train', args.batch_size * args.nr_gpu, rng=rng, shuffle=True)
-test_data = DataLoader(args.data_dir, 'test', args.batch_size * args.nr_gpu, shuffle=False)
+train_data = DataLoader(args.data_dir, 'train', args.batch_size * args.nr_gpu, rng=rng, shuffle=True, num=args.test_num)
+test_data = DataLoader(args.data_dir, 'test', args.batch_size * args.nr_gpu, shuffle=False, num=args.test_num)
 obs_shape = train_data.get_observation_size() # e.g. a tuple (32,32,3)
 model_spec = real_nvp_model_spec
 inv_model_spec = real_nvp_inv_model_spec
@@ -106,8 +103,8 @@ with tf.device('/gpu:0'):
     optimizer = nn.adam_updates(all_params, grads[0], lr=tf_lr, mom1=0.95, mom2=0.9995)
 
 # convert loss to bits/dim
-bits_per_dim = loss_gen[0]/(args.nr_gpu*np.log(2.)*np.prod(obs_shape)*args.batch_size)
-bits_per_dim_test = loss_gen_test[0]/(args.nr_gpu*np.log(2.)*np.prod(obs_shape)*args.batch_size)
+bits_per_dim = loss_gen[0]/args.batch_size#/(args.nr_gpu*np.log(2.)*np.prod(obs_shape)*args.batch_size)
+bits_per_dim_test = loss_gen_test[0]/args.batch_size#/(args.nr_gpu*np.log(2.)*np.prod(obs_shape)*args.batch_size)
 
 # init & save
 initializer = tf.initialize_all_variables()
@@ -123,6 +120,7 @@ def compute_likelihood(xf):
   feed_dict = { xs[i]: xfs[i] for i in range(args.nr_gpu) }
   l = sess.run(bits_per_dim_test, feed_dict)
   return l
+pat, c, first, testl = 5, 0, 10000, 10000
 
 # //////////// perform training //////////////
 if not os.path.exists(args.save_dir):
@@ -163,6 +161,7 @@ with tf.Session() as sess:
         # compute likelihood over test split
         test_losses = []
         print ("Testing...")
+        print (list(map(lambda x: x.shape, test_data)))
         for x in test_data:
           xf = prepro(x)
           xfs = np.split(xf, args.nr_gpu)
@@ -171,12 +170,17 @@ with tf.Session() as sess:
           test_losses.append(l)
         test_loss_gen = np.mean(test_losses)
         test_bpd.append(test_loss_gen)
-
+        if epoch == 0: first = test_loss_gen
+        if testl > test_loss_gen:
+             testl = test_loss_gen
+             c = 0
+        else:
+             c += 1
+             if c == pat: break;
         # log progress to console
         print("Iteration %d, time = %ds, train bits_per_dim = %.4f, test bits_per_dim = %.4f" % (epoch, time.time()-begin, train_loss_gen, test_loss_gen))
         sys.stdout.flush()
-
-        if epoch % args.save_interval == 0:
+        if epoch % args.save_interval == -1:
 
             print ("Generating samples...")
 
@@ -190,3 +194,5 @@ with tf.Session() as sess:
             # save params
             saver.save(sess, args.save_dir + '/params_' + args.data_set + '.ckpt')
             np.savez(args.save_dir + '/test_bpd_' + args.data_set + '.npz', test_bpd=np.array(test_bpd))
+print ("online: ", first)
+print ("offline: ", testl)

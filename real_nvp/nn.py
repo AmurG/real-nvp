@@ -48,8 +48,8 @@ class CouplingLayer(Layer):
       channel = 64
       padding = 'SAME'
       xs = int_shape(x)
-      kernel_h = 3
-      kernel_w = 3
+      kernel_h = 1
+      kernel_w = 1
       input_channel = xs[3]
       y = x
 
@@ -63,7 +63,7 @@ class CouplingLayer(Layer):
 
       skip = y
       # Residual blocks
-      num_residual_blocks = 8
+      num_residual_blocks = 0
       for r in range(num_residual_blocks):        
         weights_shape = [kernel_h, kernel_w, channel, channel]
         weights = self.get_normalized_weights("weights%d_1" % r, weights_shape)
@@ -108,10 +108,10 @@ class CouplingLayer(Layer):
       unit1 = -unit0 + 1.0
       unit = unit0 if mask_type == 'checkerboard0' else unit1
       unit = tf.reshape(unit, [1, 2, 2, 1])
-      b = tf.tile(unit, [xs[0], xs[1]//2, xs[2]//2, xs[3]])
+      b = tf.zeros(xs) if mask_type == 'checkerboard0' else tf.ones(xs)#tf.tile(unit, [xs[0], 1+xs[1]//2, 1+xs[2]//2, xs[3]])
     elif 'channel' in mask_type:
       white = tf.ones([xs[0], xs[1], xs[2], xs[3]//2])
-      black = tf.zeros([xs[0], xs[1], xs[2], xs[3]//2])
+      black = tf.zeros([xs[0], xs[1], xs[2], 1+(xs[3]-1)//2])
       if mask_type == 'channel0':
         b = tf.concat(3, [white, black])
       else:
@@ -233,7 +233,8 @@ def compute_log_prob_x(z, sum_log_det_jacobians):
   # 1/sqrt(2*pi)*exp(-0.5*x^2)
   zs = int_shape(z)
   K = zs[1]*zs[2]*zs[3] #dimension of the Gaussian distribution
-
+  print("lawlzzz")
+  print (zs)
   log_density_z = -0.5*tf.reduce_sum(tf.square(z), [1,2,3]) - 0.5*K*np.log(2*np.pi)
 
   log_density_x = log_density_z + sum_log_det_jacobians

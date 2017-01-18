@@ -37,25 +37,25 @@ def unpickle(file):
     fo.close()
     return {'x': d['data'].reshape((10000,3,32,32)), 'y': np.array(d['labels']).astype(np.uint8)}
 
-def load(data_dir, subset='train'):
-    maybe_download_and_extract(data_dir)
-    if subset=='train':
-        train_data = [unpickle(os.path.join(data_dir,'cifar-10-batches-py','data_batch_' + str(i))) for i in range(1,6)]
-        trainx = np.concatenate([d['x'] for d in train_data],axis=0)
-        trainy = np.concatenate([d['y'] for d in train_data],axis=0)
-        return trainx, trainy
-    elif subset=='test':
-        test_data = unpickle(os.path.join(data_dir,'cifar-10-batches-py','test_batch'))
-        testx = test_data['x']
-        testy = test_data['y']
-        return testx, testy
-    else:
-        raise NotImplementedError('subset should be either train or test')
+def load(filename, to_load):
+    data = [np.loadtxt(filename + "" + str(x) + ".data", delimiter=",", dtype=np.float32) for x in to_load]
+    data = np.concatenate(data)
+    data = np.reshape(data, (data.shape[0], 1, 1, data.shape[1]))
+    mm = np.loadtxt(filename + "m.data", delimiter=", ", dtype=np.float32)
+    minz = mm[1] - 1
+    maxz = mm[0]
+    maxz -= minz
+    data -= minz
+    data /= maxz
+    data *= 255
+    return data
+    
+
 
 class DataLoader(object):
     """ an object that generates batches of CIFAR-10 data for training """
 
-    def __init__(self, data_dir, subset, batch_size, rng=None, shuffle=False):
+    def __init__(self, data_dir, subset, batch_size, rng=None, shuffle=False, num=1):
         """ 
         - data_dir is location where to store files
         - subset is train|test 
@@ -73,9 +73,10 @@ class DataLoader(object):
             os.makedirs(data_dir)
 
         # load CIFAR-10 training data to RAM
-        self.data, labels = load(os.path.join(data_dir,'cifar-10-python'), subset=subset)
-        self.data = np.transpose(self.data, (0,2,3,1)) # (N,3,32,32) -> (N,32,32,3)
-        
+        to_load = list(range(1, num)) + list(range(num+1, 11)) if subset == 'train' else [num]
+        self.data = load(data_dir, to_load)
+        print (np.max(self.data))
+        print (np.min(self.data))
         self.p = 0 # pointer to where we are in iteration
         self.rng = np.random.RandomState(1) if rng is None else rng
 

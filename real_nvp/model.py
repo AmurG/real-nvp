@@ -11,7 +11,7 @@ layers = []
 # for the CIFAR10 model.
 def construct_model_spec():
   global layers
-  num_scales = 2
+  num_scales = 1
   for scale in range(num_scales-1):    
     layers.append(nn.CouplingLayer('checkerboard0', name='Checkerboard%d_1' % scale))
     layers.append(nn.CouplingLayer('checkerboard1', name='Checkerboard%d_2' % scale))
@@ -24,10 +24,10 @@ def construct_model_spec():
 
   # final layer
   scale = num_scales-1
-  layers.append(nn.CouplingLayer('checkerboard0', name='Checkerboard%d_1' % scale))
-  layers.append(nn.CouplingLayer('checkerboard1', name='Checkerboard%d_2' % scale))
-  layers.append(nn.CouplingLayer('checkerboard0', name='Checkerboard%d_3' % scale))
-  layers.append(nn.CouplingLayer('checkerboard1', name='Checkerboard%d_4' % scale))
+  layers.append(nn.CouplingLayer('channel0', name='Checkerboard%d_1' % scale))
+  layers.append(nn.CouplingLayer('channel1', name='Checkerboard%d_2' % scale))
+  layers.append(nn.CouplingLayer('channel0', name='Checkerboard%d_3' % scale))
+  layers.append(nn.CouplingLayer('channel1', name='Checkerboard%d_4' % scale))
   layers.append(nn.FactorOutLayer(scale, name='FactorOut%d' % scale))
 
 

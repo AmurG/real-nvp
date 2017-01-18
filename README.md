@@ -1,5 +1,6 @@
-# real-nvp
+# real-nvp - modified
 Implementation of Real-NVP (https://arxiv.org/abs/1605.08803) in Tensorflow.
+This was modified to work with datasets being used in the Online Structure Learning for SPNs paper. 
 
 Started with code from PixelCNN++ by OpenAI (https://github.com/openai/pixel-cnn)
 
@@ -7,7 +8,8 @@ Sample usage:
 
 1. Install Python3. 
 2. Create directories for downloading dataset and saving checkpoints. 
-3. Run train.py. '--nr_gpu', which denotes the number of GPUs to use, should be specified. 
+3. Seperate data into 10 .txt files and also create another file that keeps track of the mean and variance of each variable e.g. data/dataset_name/dataset_name.1.data 
+4. Run train.py. '--nr_gpu', which denotes the number of GPUs to use, should be specified. 
 
 Sample usage: 
 
